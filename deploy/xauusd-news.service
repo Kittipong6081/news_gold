@@ -1,0 +1,38 @@
+# systemd unit สำหรับรัน XAUUSD News Monitor บน VPS แบบ 24/7
+# ----------------------------------------------------------------------------
+# วิธีติดตั้ง (รันบน VPS ในฐานะ root หรือ sudo):
+#   1) แก้ค่า User / WorkingDirectory / ExecStart ให้ตรงกับเครื่องคุณด้านล่าง
+#   2) sudo cp deploy/xauusd-news.service /etc/systemd/system/xauusd-news.service
+#   3) sudo systemctl daemon-reload
+#   4) sudo systemctl enable --now xauusd-news
+#   5) ดู log:  journalctl -u xauusd-news -f
+# ----------------------------------------------------------------------------
+
+[Unit]
+Description=XAUUSD Real-time News Monitor & AI Analyst
+# รอให้เน็ตพร้อมก่อนค่อยเริ่ม (กัน feed ดึงพลาดตอนบูตเครื่อง)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# >>> แก้ 3 บรรทัดนี้ให้ตรงกับเครื่องคุณ <<<
+User=botuser
+WorkingDirectory=/opt/news_gold
+ExecStart=/opt/news_gold/.venv/bin/python /opt/news_gold/main.py
+
+# โหลด secret จากไฟล์ .env (KEY=VALUE บรรทัดละค่า, รองรับ comment #)
+EnvironmentFile=/opt/news_gold/.env
+
+# crash แล้วรีสตาร์ตเองเสมอ เว้น 10 วิ กันลูป crash ถี่
+Restart=always
+RestartSec=10
+
+# ส่ง log เข้า journald -> ดูด้วย journalctl -u xauusd-news
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=xauusd-news
+
+[Install]
+WantedBy=multi-user.target

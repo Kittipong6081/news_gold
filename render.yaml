@@ -1,0 +1,22 @@
+# Render.com Blueprint — Background Worker แบบรันตลอด 24/7 (ไม่ sleep)
+# วิธีใช้: push โปรเจกต์ขึ้น GitHub แล้ว Render > New > Blueprint > เลือก repo นี้
+services:
+  - type: worker                 # worker = รันตลอดเวลา (web service ฟรีจะ sleep)
+    name: xauusd-news-monitor
+    runtime: python
+    plan: starter                # worker ไม่มี free tier — starter ~$7/เดือน รันต่อเนื่อง
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: DISCORD_WEBHOOK_URL
+        sync: false              # ใส่ค่าจริงในหน้า Dashboard (เป็นความลับ)
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: DB_PATH
+        value: /data/seen_news.db   # ชี้ไป persistent disk ด้านล่าง
+    disk:
+      name: data
+      mountPath: /data           # เก็บ SQLite ไม่ให้หายตอน redeploy
+      sizeGB: 1

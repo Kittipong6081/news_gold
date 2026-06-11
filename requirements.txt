@@ -1,0 +1,6 @@
+# XAUUSD Real-time News Monitor & AI Analyst
+# Core dependencies
+feedparser>=6.0.11      # อ่าน/parse RSS, Atom feeds
+requests>=2.31.0        # ดึง feed + ยิง Discord webhook + เรียก HTTP
+openai>=1.40,<2         # OpenAI API client (รูปแบบ client.chat.completions.create)
+python-dotenv>=1.0.1    # โหลดค่า config จากไฟล์ .env
