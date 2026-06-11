@@ -11,7 +11,7 @@ storage.py
 import sqlite3
 import logging
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 log = logging.getLogger("storage")
 
@@ -47,6 +47,10 @@ class NewsStore:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)"
             )
+            # เก็บ "ลายเซ็นหัวข้อข่าว" ที่เพิ่งแจ้งไป -> กันข่าวเดียวกันจากหลายสำนักเด้งซ้ำ
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS alerted_titles (sig TEXT PRIMARY KEY, ts TEXT)"
+            )
         log.info("ฐานข้อมูลพร้อมใช้งานที่ %s", self.db_path)
 
     # ----- De-duplication -----
@@ -79,6 +83,31 @@ class NewsStore:
         with self._conn() as conn:
             return conn.execute("SELECT COUNT(*) FROM seen_news").fetchone()[0]
 
+    # ----- กันข่าวซ้ำตามความคล้ายหัวข้อ (cross-source) -----
+    def recent_similar_title(self, sig: str, hours: int) -> bool:
+        """True ถ้ามีข่าวหัวข้อคล้ายกันนี้ถูกแจ้งไปแล้วภายใน N ชั่วโมง"""
+        if not sig:
+            return False
+        cutoff = (
+            datetime.now(timezone.utc) - timedelta(hours=hours)
+        ).isoformat()
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM alerted_titles WHERE sig = ? AND ts >= ? LIMIT 1",
+                (sig, cutoff),
+            ).fetchone()
+            return row is not None
+
+    def remember_title(self, sig: str):
+        """บันทึกลายเซ็นหัวข้อที่เพิ่งประมวลผล/แจ้งไป"""
+        if not sig:
+            return
+        with self._conn() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO alerted_titles (sig, ts) VALUES (?, ?)",
+                (sig, datetime.now(timezone.utc).isoformat()),
+            )
+
     def purge_older_than(self, days: int = 7):
         """ลบประวัติเก่ากว่า N วัน กันไฟล์ DB โตไม่จำกัด"""
         cutoff = datetime.now(timezone.utc).timestamp() - days * 86400
@@ -88,6 +117,7 @@ class NewsStore:
             cur = conn.execute(
                 "DELETE FROM seen_news WHERE processed_at < ?", (cutoff_iso,)
             )
+            conn.execute("DELETE FROM alerted_titles WHERE ts < ?", (cutoff_iso,))
             if cur.rowcount:
                 log.info("ล้างประวัติข่าวเก่า %d รายการ", cur.rowcount)
 

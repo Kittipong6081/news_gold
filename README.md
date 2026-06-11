@@ -65,7 +65,8 @@ python main.py
 | `POLL_INTERVAL_SECONDS` | — | `60` | รอบดึงข่าว |
 | `MAX_AGE_HOURS` | — | `6` | พิจารณาเฉพาะข่าวใหม่ภายในกี่ชั่วโมง |
 | `MAX_ALERTS_PER_CYCLE` | — | `8` | เพดานแจ้งเตือนต่อรอบ (กัน flood) |
-| `ALERT_MIN_IMPACT` | — | `Medium` | แจ้งเฉพาะ impact ระดับนี้ขึ้นไป (`Low`/`Medium`/`High`) — ตั้ง `Medium` เพื่อตัดข่าว Low ทิ้ง |
+| `ALERT_MIN_IMPACT` | — | `Medium` | แจ้งเฉพาะ impact ระดับนี้ขึ้นไป (`Low`/`Medium`/`High`) — ตั้ง `High` ถ้าอยากให้เงียบสุด |
+| `DEDUP_TITLE_HOURS` | — | `6` | กันข่าวเดียวกันจากหลายสำนักเด้งซ้ำ ภายในกี่ชั่วโมง |
 | `DB_PATH` | — | `seen_news.db` | ที่อยู่ไฟล์ SQLite |
 
 **สร้าง Discord Webhook:** ตั้งค่าเซิร์ฟเวอร์ → Integrations → Webhooks → New Webhook → Copy Webhook URL

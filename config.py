@@ -44,6 +44,9 @@ MAX_ALERTS_PER_CYCLE = int(os.getenv("MAX_ALERTS_PER_CYCLE", "8"))
 #   "High"   = แจ้งเฉพาะข่าวแรงเท่านั้น
 ALERT_MIN_IMPACT = os.getenv("ALERT_MIN_IMPACT", "Medium").strip().capitalize()
 
+# กันข่าวหัวข้อคล้ายกัน (ข่าวเดียวกันจากหลายสำนัก) ไม่ให้แจ้งซ้ำภายใน N ชั่วโมง
+DEDUP_TITLE_HOURS = int(os.getenv("DEDUP_TITLE_HOURS", "6"))
+
 _IMPACT_RANK = {"low": 1, "medium": 2, "high": 3}
 
 

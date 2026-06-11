@@ -68,6 +68,14 @@ def run_cycle(store: NewsStore):
                 store.mark_seen(it)  # เห็นแล้ว แต่ไม่เกี่ยว -> จำไว้ไม่ต้องเช็คซ้ำ
                 continue
 
+            # กันข่าวเดียวกันจากหลายสำนัก (หัวข้อคล้ายที่เพิ่งแจ้งไป) -> ไม่เด้งซ้ำ + ไม่เปลือง AI
+            # (เฉพาะข่าว RSS; ข่าวปฏิทินกันซ้ำด้วย id อยู่แล้ว)
+            sig = "" if it.get("impact") else filters.title_signature(it)
+            if sig and store.recent_similar_title(sig, config.DEDUP_TITLE_HOURS):
+                log.info("ข้ามข่าวซ้ำจากหลายสำนัก: %s", it.get("title", "")[:60])
+                store.mark_seen(it)
+                continue
+
             if alerts_sent >= config.MAX_ALERTS_PER_CYCLE:
                 log.warning("ถึงเพดานแจ้งเตือน/รอบ (%d) — ที่เหลือรอรอบถัดไป",
                             config.MAX_ALERTS_PER_CYCLE)
@@ -93,6 +101,8 @@ def run_cycle(store: NewsStore):
             store.mark_seen(it)
             if ok:
                 alerts_sent += 1
+                if sig:
+                    store.remember_title(sig)  # จำว่าหัวข้อนี้แจ้งไปแล้ว -> กันสำนักอื่นซ้ำ
             time.sleep(0.5)  # เว้นจังหวะกัน Discord rate limit
         except Exception as e:
             log.exception("ประมวลผลข่าวล้มเหลว '%s': %s", it.get("title", "")[:60], e)

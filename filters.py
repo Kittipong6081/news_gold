@@ -8,12 +8,35 @@ filters.py
 หมายเหตุ: ด่านกันซ้ำ (de-dup) อยู่ใน main.py ที่คุยกับ storage โดยตรง
 """
 
+import re
 import logging
 from datetime import datetime, timezone, timedelta
 
 import config
 
 log = logging.getLogger("filters")
+
+# คำทั่วไปที่ไม่ช่วยแยกแยะข่าว -> ตัดทิ้งตอนทำลายเซ็นหัวข้อ
+_STOPWORDS = {
+    "the", "a", "an", "to", "of", "in", "on", "for", "and", "or", "as", "at",
+    "by", "is", "are", "was", "were", "with", "amid", "after", "before", "from",
+    "says", "say", "said", "update", "live", "report", "reports", "new", "its",
+    "it", "this", "that", "over", "into", "out", "up", "down", "than", "but",
+}
+
+
+def title_signature(item: dict, max_words: int = 6) -> str:
+    """สร้าง 'ลายเซ็น' จากคำสำคัญในหัวข้อ เพื่อจับว่าเป็นข่าวเดียวกันจากหลายสำนัก
+    (เช่น Reuters/Bloomberg/CNBC พาดหัวคล้ายกัน) -> ใช้กันแจ้งซ้ำ cross-source
+    - ตัด suffix ' - <สำนักข่าว>' ที่ Google News เติมท้าย
+    - lower + เก็บเฉพาะตัวอักษร/ตัวเลข + ตัด stopword
+    - เรียงคำ (sorted) -> ลำดับคำต่างกันแต่ใจความเดียวกันก็ยัง match
+    """
+    title = item.get("title", "")
+    title = re.sub(r"\s*[-|–—]\s*[^-|–—]{1,30}$", "", title)  # ตัด " - Reuters"
+    words = re.findall(r"[a-z0-9]+", title.lower())
+    keys = sorted(w for w in words if w not in _STOPWORDS and len(w) > 2)
+    return " ".join(keys[:max_words])
 
 
 def is_recent(item: dict) -> bool:
