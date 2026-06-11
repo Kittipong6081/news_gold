@@ -122,6 +122,17 @@ def _parse_rss(feed_cfg: dict) -> list[dict]:
         guid = (entry.get("id") or "").strip()
         summary = (entry.get("summary") or entry.get("description") or "").strip()
 
+        # Google News (และ feed ที่มี <source>) บอกชื่อสำนักจริง เช่น Reuters/CNBC
+        # -> ใช้เป็น "แหล่งข่าว" ที่แสดง แทนชื่อ feed เช่น "GoogleNews Gold"
+        publisher = ""
+        src = entry.get("source")
+        if src:
+            publisher = (src.get("title") or "").strip()
+        # ตัด suffix " - Reuters" ท้ายพาดหัวออก ให้ AI ได้หัวข้อสะอาด
+        if publisher and title.endswith(f" - {publisher}"):
+            title = title[: -(len(publisher) + 3)].rstrip()
+        display_source = publisher or feed_cfg["name"]
+
         published_iso, published_dt = _struct_to_iso(
             entry.get("published_parsed") or entry.get("updated_parsed")
         )
@@ -129,7 +140,7 @@ def _parse_rss(feed_cfg: dict) -> list[dict]:
         items.append(
             {
                 "id": _make_id(guid, link, title),
-                "source": feed_cfg["name"],
+                "source": display_source,
                 "title": title,
                 "summary": summary,
                 "link": link,
