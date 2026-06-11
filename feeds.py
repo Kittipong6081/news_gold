@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 import requests
 import feedparser
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
 
 import config
 
@@ -258,15 +259,23 @@ def _is_due(feed_cfg: dict) -> bool:
 
 
 def fetch_all() -> list[dict]:
-    """ดึงทุก feed (ที่ถึงรอบ) รวมเป็น list เดียว (กันซ้ำในรอบเดียวกันด้วย id)"""
+    """ดึงทุก feed (ที่ถึงรอบ) แบบ "ขนาน" รวมเป็น list เดียว (กันซ้ำในรอบด้วย id)
+    ดึงพร้อมกันหลาย feed -> รอบหนึ่งใช้เวลา ~ feed ที่ช้าสุด แทนผลรวมทุกตัว
+    """
+    due = [f for f in config.FEEDS if _is_due(f)]
+    if not due:
+        return []
+
+    results = []
+    with ThreadPoolExecutor(max_workers=min(8, len(due))) as ex:
+        for feed_cfg, items in zip(due, ex.map(fetch_one, due)):
+            _last_fetch[feed_cfg["name"]] = time.monotonic()
+            log.debug("feed %s -> %d รายการ", feed_cfg["name"], len(items))
+            results.append(items)
+
     seen_ids = set()
     all_items = []
-    for feed_cfg in config.FEEDS:
-        if not _is_due(feed_cfg):
-            continue  # ยังไม่ถึงรอบของ feed นี้ -> ข้าม
-        items = fetch_one(feed_cfg)
-        _last_fetch[feed_cfg["name"]] = time.monotonic()
-        log.debug("feed %s -> %d รายการ", feed_cfg["name"], len(items))
+    for items in results:
         for it in items:
             if it["id"] in seen_ids:
                 continue
